@@ -37,3 +37,7 @@ cd src-tauri && cargo check
 SQLite 文件 `app.db` 由 Tauri 数据目录承载，表 `tasks` 与 `focus_sessions`，建表迁移写在 `src-tauri/src/lib.rs`。计时状态另存于 `localStorage`（键 `ff-timer-state`），重启可恢复进行中的一段。
 
 打包产物名为 `FocusFlow`（`src-tauri/tauri.conf.json` 的 `productName`），窗口标题与界面品牌为「坐香」「坐香历」。
+
+## 许可
+
+[MIT](LICENSE) © 2026 谷凉
