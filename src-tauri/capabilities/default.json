@@ -8,8 +8,10 @@
   "permissions": [
     "core:default",
     "core:tray:default",
+    "core:window:allow-set-title",
     "opener:default",
     "sql:default",
+    "sql:allow-execute",
     "notification:default"
   ]
 }
