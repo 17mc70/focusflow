@@ -71,12 +71,13 @@ export function TimerView({ timer, tasks, today }: TimerViewProps) {
         : `时长${cnNum(state.focusMinutes)}分钟 · 已燃${CN_TEN[burningPct - 1]}成`;
 
   const ghost = idle
-    ? "3px 3px 0 rgba(194,58,43,.18)"
+    ? "var(--ghost-idle)"
     : break_
-      ? "3px 3px 0 rgba(49,96,107,.4)"
-      : "3px 3px 0 rgba(194,58,43,.38)";
+      ? "var(--ghost-break)"
+      : "var(--ghost-focus)";
 
-  const accent = break_ ? "var(--azurite)" : "var(--cinnabar)";
+  const sealBg = break_ ? "var(--seal-break-bg)" : "var(--seal-bg)";
+  const sealFg = break_ ? "var(--seal-break-fg)" : "var(--seal-fg)";
   const sealLabel = idle ? "坐" : paused ? "续" : "止";
 
   return (
@@ -108,10 +109,14 @@ export function TimerView({ timer, tasks, today }: TimerViewProps) {
         <div className="mt-4 flex items-center gap-10">
           <div className="flex items-center gap-2.5">
             <span
-              className={cn(
-                "px-2 py-0.5 text-[19px] font-black tracking-[0.1em] text-primary-foreground",
-                break_ ? "bg-azurite" : "bg-cinnabar",
-              )}
+              className="px-2 py-0.5 text-[19px] font-black tracking-[0.1em]"
+              style={{
+                background: break_ ? "var(--chip-break-bg)" : "var(--chip-yi-bg)",
+                color: break_ ? "var(--chip-break-fg)" : "var(--chip-yi-fg)",
+                boxShadow: break_
+                  ? "inset 0 0 0 1px var(--chip-break-ring)"
+                  : "inset 0 0 0 1px var(--chip-yi-ring)",
+              }}
             >
               宜
             </span>
@@ -120,7 +125,14 @@ export function TimerView({ timer, tasks, today }: TimerViewProps) {
             </span>
           </div>
           <div className="flex items-center gap-2.5">
-            <span className="bg-ink px-2 py-0.5 text-[19px] font-black tracking-[0.1em] text-primary-foreground">
+            <span
+              className="px-2 py-0.5 text-[19px] font-black tracking-[0.1em]"
+              style={{
+                background: "var(--chip-ji-bg)",
+                color: "var(--chip-ji-fg)",
+                boxShadow: "inset 0 0 0 1px var(--chip-ji-ring)",
+              }}
+            >
               忌
             </span>
             <span className="text-[22px] font-black tracking-[0.28em]">
@@ -178,18 +190,20 @@ export function TimerView({ timer, tasks, today }: TimerViewProps) {
               else if (paused) actions.resume();
               else actions.pause();
             }}
-            className="flex h-[74px] w-[74px] -rotate-2 items-center justify-center rounded-[5px] font-brush text-[34px] font-bold text-primary-foreground transition-transform duration-150 hover:scale-105 active:scale-95"
+            className="flex h-[74px] w-[74px] -rotate-2 items-center justify-center rounded-[5px] font-brush text-[34px] font-bold transition-transform duration-150 hover:scale-105 active:scale-95"
             style={{
-              background: accent,
-              boxShadow:
-                "inset 0 0 0 2.5px rgba(247,235,203,.55), 0 2px 6px rgba(34,28,21,.3)",
+              background: sealBg,
+              color: sealFg,
+              boxShadow: break_
+                ? "var(--seal-break-edge)"
+                : "var(--seal-edge)",
             }}
           >
             {sealLabel}
           </button>
           {!idle && (
             <button
-              onClick={() => void actions.skip()}
+              onClick={() => actions.skip()}
               className="text-[13px] tracking-[0.3em] text-muted-foreground transition-colors hover:text-cinnabar-deep"
             >
               截课

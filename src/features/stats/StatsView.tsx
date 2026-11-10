@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listDailyFocus, type DailyFocus } from "@/lib/db";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useToday } from "@/lib/useToday";
 
 const DAYS = 14;
 const CN_WEEK = ["日", "一", "二", "三", "四", "五", "六"];
@@ -17,12 +18,13 @@ function localDay(offsetDays: number): { key: string; d: Date } {
 /** 检历:近十四日排成同尺寸历页缩样,同基线逐日可比 */
 export function StatsView() {
   const [rows, setRows] = useState<DailyFocus[] | null>(null);
+  const day = useToday();
 
   useEffect(() => {
     listDailyFocus(DAYS)
       .then(setRows)
       .catch(() => setRows([]));
-  }, []);
+  }, [day]);
 
   if (rows === null) return null;
 
@@ -38,7 +40,7 @@ export function StatsView() {
   if (totalSeconds === 0) {
     return (
       <div className="animate-in-up mx-auto flex h-full w-full max-w-[560px] flex-col items-center justify-center gap-3">
-        <div className="font-brush text-3xl text-[#6f6046]">白</div>
+        <div className="font-brush text-3xl text-[#6b5d45]">白</div>
         <p className="text-xs tracking-[0.25em] text-muted-foreground">
           检历尚白 · 一炷之后再来看
         </p>

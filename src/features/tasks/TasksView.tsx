@@ -16,6 +16,8 @@ export function TasksView({ tasks, onAdd, onToggle, onRename, onRemove }: TasksV
   const [title, setTitle] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  /** 待确认删除的日课 id */
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   const totalFocus = tasks.reduce((sum, t) => sum + t.focus_seconds, 0);
 
@@ -48,7 +50,7 @@ export function TasksView({ tasks, onAdd, onToggle, onRename, onRemove }: TasksV
 
       {tasks.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
-          <div className="font-brush text-3xl text-[#6f6046]">空</div>
+          <div className="font-brush text-3xl text-[#6b5d45]">空</div>
           <p className="text-xs tracking-[0.25em]">日课尚空 · 可径自起课</p>
         </div>
       ) : (
@@ -124,13 +126,33 @@ export function TasksView({ tasks, onAdd, onToggle, onRename, onRemove }: TasksV
                     {formatDuration(t.focus_seconds)}
                   </span>
                 )}
-                <button
-                  onClick={() => onRemove(t.id)}
-                  title="删"
-                  className="shrink-0 text-xs text-muted-foreground/0 transition-colors group-hover:text-muted-foreground hover:!text-cinnabar-deep"
-                >
-                  删
-                </button>
+                {confirmingId === t.id ? (
+                  <span className="flex shrink-0 items-center gap-2 text-[11px] tracking-[0.1em]">
+                    <button
+                      onClick={() => {
+                        onRemove(t.id);
+                        setConfirmingId(null);
+                      }}
+                      className="text-cinnabar-deep hover:underline"
+                    >
+                      果删
+                    </button>
+                    <button
+                      onClick={() => setConfirmingId(null)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      罢了
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingId(t.id)}
+                    title="删"
+                    className="shrink-0 text-xs text-muted-foreground/0 transition-colors group-hover:text-muted-foreground hover:!text-cinnabar-deep"
+                  >
+                    删
+                  </button>
+                )}
               </li>
             );
           })}

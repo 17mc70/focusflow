@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Masthead, type ViewId } from "@/components/Masthead";
 import { FooterBar } from "@/components/FooterBar";
 import { TimerView } from "@/features/timer/TimerView";
@@ -7,10 +7,14 @@ import { TasksView } from "@/features/tasks/TasksView";
 import { useTasks } from "@/features/tasks/useTasks";
 import { StatsView } from "@/features/stats/StatsView";
 import { listDailyFocus } from "@/lib/db";
+import { useTheme } from "@/lib/useTheme";
+import { useToday } from "@/lib/useToday";
 
 export default function App() {
   const [view, setView] = useState<ViewId>("timer");
   const { tasks, refresh, add, toggle, rename, remove } = useTasks();
+  const { theme, setTheme } = useTheme();
+  const day = useToday();
   const [today, setToday] = useState<{ tomatoes: number; seconds: number }>({
     tomatoes: 0,
     seconds: 0,
@@ -34,7 +38,31 @@ export default function App() {
 
   useEffect(() => {
     refreshToday();
-  }, [refreshToday, timer.state.phase]);
+  }, [refreshToday, timer.state.phase, day]);
+
+  // 空格:起课 / 暂停 / 续课。输入框与可编辑区内不抢键
+  const timerRef = useRef(timer);
+  timerRef.current = timer;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el?.isContentEditable ||
+        el?.tagName === "INPUT" ||
+        el?.tagName === "TEXTAREA" ||
+        el?.tagName === "SELECT"
+      ) {
+        return;
+      }
+      e.preventDefault();
+      const { state, actions } = timerRef.current;
+      if (state.phase === "idle") actions.start(state.taskId);
+      else actions.togglePause();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const todoTasks = tasks.filter((t) => t.status === "todo");
 
@@ -56,7 +84,12 @@ export default function App() {
           <StatsView />
         )}
       </main>
-      <FooterBar today={today} celebrateKey={timer.celebrateKey} />
+      <FooterBar
+        today={today}
+        celebrateKey={timer.celebrateKey}
+        theme={theme}
+        onThemeChange={setTheme}
+      />
     </div>
   );
 }

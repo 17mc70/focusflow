@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TrayIcon } from "@tauri-apps/api/tray";
+import { listen } from "@tauri-apps/api/event";
 import { sendNotification } from "@tauri-apps/plugin-notification";
 import { insertFocusSession } from "@/lib/db";
+import type { FocusSession } from "@/lib/types";
 
 export type Phase = "idle" | "focus" | "break";
 
@@ -38,14 +40,69 @@ const BASE_STATE: TimerState = {
   taskId: null,
 };
 
-function loadState(): TimerState {
+function loadState(): { state: TimerState; overdue: Omit<FocusSession, "id"> | null } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return BASE_STATE;
-    return { ...BASE_STATE, ...JSON.parse(raw) };
+    if (!raw) return { state: BASE_STATE, overdue: null };
+    const { state, session } = settleOverdue({
+      ...BASE_STATE,
+      ...JSON.parse(raw),
+    });
+    return { state, overdue: session };
   } catch {
-    return BASE_STATE;
+    return { state: BASE_STATE, overdue: null };
   }
+}
+
+/**
+ * 应用不在时已经走完的段:只补结算这一段本身,然后回到闲置。
+ * 不连锁重放 slept-through 的休息/下一炷(那是凭空造数据),
+ * 也不播通知与落印——此刻人并不在现场。
+ */
+function settleOverdue(
+  s: TimerState,
+): { state: TimerState; session: Omit<FocusSession, "id"> | null } {
+  const idle: TimerState = {
+    ...s,
+    phase: "idle",
+    paused: false,
+    plannedSeconds: s.focusMinutes * 60,
+    startAt: null,
+    pausedAccum: 0,
+    pausedAt: null,
+    sessionStartAt: null,
+  };
+
+  if (s.phase === "idle" || s.startAt == null || s.paused) {
+    return { state: s, session: null };
+  }
+
+  // 段真实结束时刻:起点 + 计划时长 + 累计暂停
+  const end = s.startAt + s.plannedSeconds * 1000 + s.pausedAccum;
+  if (Date.now() < end) return { state: s, session: null };
+
+  const session: Omit<FocusSession, "id"> =
+    s.phase === "focus"
+      ? {
+          task_id: s.taskId,
+          mode: "focus",
+          started_at: new Date(s.sessionStartAt ?? s.startAt).toISOString(),
+          ended_at: new Date(end).toISOString(),
+          planned_seconds: s.plannedSeconds,
+          actual_seconds: s.plannedSeconds,
+          status: "completed",
+        }
+      : {
+          task_id: null,
+          mode: "break",
+          started_at: new Date(s.startAt).toISOString(),
+          ended_at: new Date(end).toISOString(),
+          planned_seconds: s.plannedSeconds,
+          actual_seconds: s.plannedSeconds,
+          status: "completed",
+        };
+
+  return { state: idle, session };
 }
 
 function elapsedOf(s: TimerState, now: number): number {
@@ -69,16 +126,39 @@ function notify(title: string, body: string) {
   }
 }
 
+/** 段结束写库:失败只丢这一笔记录,绝不影响计时状态推进 */
+function persistSession(
+  session: Omit<FocusSession, "id">,
+  onPersisted?: () => void,
+) {
+  void insertFocusSession(session)
+    .then(() => onPersisted?.())
+    .catch(() => {
+      /* 数据库不可用(如浏览器预览)时丢弃,状态机照常 */
+    });
+}
+
 interface UseTimerOptions {
   /** 一个专注番茄入库后回调(如刷新任务累计) */
   onFocusComplete?: () => void;
 }
 
 export function useTimer({ onFocusComplete }: UseTimerOptions = {}) {
-  const [state, setState] = useState<TimerState>(loadState);
+  const [restored] = useState(loadState);
+  const [state, setState] = useState<TimerState>(restored.state);
   const [now, setNow] = useState(() => Date.now());
   const [celebrateKey, setCelebrateKey] = useState(0);
-  const completingRef = useRef(false);
+  /** 已结算过的段标识(相 + 起点),防止同一段被连续 tick 重复入库 */
+  const completedRef = useRef<string | null>(null);
+
+  // 关闭期间走完的那一段在这里补记一次;回调要等挂载后才能拿到最新的刷新函数
+  const overdueRef = useRef(restored.overdue);
+  useEffect(() => {
+    const session = overdueRef.current;
+    if (!session) return;
+    overdueRef.current = null;
+    persistSession(session, onFocusComplete);
+  }, [onFocusComplete]);
 
   const running = state.phase !== "idle" && !state.paused;
 
@@ -87,61 +167,61 @@ export function useTimer({ onFocusComplete }: UseTimerOptions = {}) {
   }, [state]);
 
   const completeSegment = useCallback(
-    async (s: TimerState) => {
-      if (completingRef.current) return;
-      completingRef.current = true;
+    (s: TimerState) => {
+      const key = `${s.phase}@${s.startAt}`;
+      if (completedRef.current === key) return;
+      completedRef.current = key;
       const nowMs = Date.now();
-      try {
-        if (s.phase === "focus") {
-          await insertFocusSession({
-            task_id: s.taskId,
-            mode: "focus",
-            started_at: new Date(s.sessionStartAt ?? nowMs).toISOString(),
-            ended_at: new Date(nowMs).toISOString(),
-            planned_seconds: s.plannedSeconds,
-            actual_seconds: s.plannedSeconds,
-            status: "completed",
-          });
-          notify("一炷功成", "宜小憩片刻");
-          setCelebrateKey((k) => k + 1);
-          onFocusComplete?.();
-          setState({
-            ...s,
-            phase: "break",
-            paused: false,
-            plannedSeconds: BREAK_MINUTES * 60,
-            startAt: nowMs,
-            pausedAccum: 0,
-            pausedAt: null,
-            sessionStartAt: null,
-          });
-        } else if (s.phase === "break") {
-          await insertFocusSession({
-            task_id: null,
-            mode: "break",
-            started_at: new Date(s.startAt ?? nowMs).toISOString(),
-            ended_at: new Date(nowMs).toISOString(),
-            planned_seconds: s.plannedSeconds,
-            actual_seconds: s.plannedSeconds,
-            status: "completed",
-          });
-          notify("小憩毕", "宜再课一炷");
-          setState({
-            ...s,
-            phase: "idle",
-            paused: false,
-            plannedSeconds: s.focusMinutes * 60,
-            startAt: null,
-            pausedAccum: 0,
-            pausedAt: null,
-            sessionStartAt: null,
-          });
-        }
-      } catch {
-        /* 数据库不可用(如浏览器预览)时跳过入库,状态机照常推进 */
-      } finally {
-        completingRef.current = false;
+      const payload: Omit<FocusSession, "id"> =
+        s.phase === "focus"
+          ? {
+              task_id: s.taskId,
+              mode: "focus",
+              started_at: new Date(s.sessionStartAt ?? nowMs).toISOString(),
+              ended_at: new Date(nowMs).toISOString(),
+              planned_seconds: s.plannedSeconds,
+              actual_seconds: s.plannedSeconds,
+              status: "completed",
+            }
+          : {
+              task_id: null,
+              mode: "break",
+              started_at: new Date(s.startAt ?? nowMs).toISOString(),
+              ended_at: new Date(nowMs).toISOString(),
+              planned_seconds: s.plannedSeconds,
+              actual_seconds: s.plannedSeconds,
+              status: "completed",
+            };
+
+      // 先推进状态,再异步入库:写库失败不影响换相,否则会卡在 00:00 反复重试
+      if (s.phase === "focus") {
+        notify("一炷功成", "宜小憩片刻");
+        setCelebrateKey((k) => k + 1);
+        setState({
+          ...s,
+          phase: "break",
+          paused: false,
+          plannedSeconds: BREAK_MINUTES * 60,
+          startAt: nowMs,
+          pausedAccum: 0,
+          pausedAt: null,
+          sessionStartAt: null,
+        });
+      } else if (s.phase === "break") {
+        notify("小憩毕", "宜再课一炷");
+        setState({
+          ...s,
+          phase: "idle",
+          paused: false,
+          plannedSeconds: s.focusMinutes * 60,
+          startAt: null,
+          pausedAccum: 0,
+          pausedAt: null,
+          sessionStartAt: null,
+        });
       }
+
+      persistSession(payload, s.phase === "focus" ? onFocusComplete : undefined);
     },
     [onFocusComplete],
   );
@@ -155,7 +235,7 @@ export function useTimer({ onFocusComplete }: UseTimerOptions = {}) {
         state.startAt != null &&
         elapsedOf(state, n) >= state.plannedSeconds * 1000
       ) {
-        void completeSegment(state);
+        completeSegment(state);
       }
     }, 250);
     return () => clearInterval(id);
@@ -175,16 +255,66 @@ export function useTimer({ onFocusComplete }: UseTimerOptions = {}) {
     if (title === lastTitleRef.current) return;
     lastTitleRef.current = title;
     try {
-      void getCurrentWindow().setTitle(title);
+      getCurrentWindow()
+        .setTitle(title)
+        .catch(() => {
+          /* 浏览器预览时无窗口 API,静默降级 */
+        });
     } catch {
-      /* 浏览器预览时无窗口 API,静默降级 */
+      /* 同步抛错同样降级 */
     }
     try {
-      void TrayIcon.getById("main").then((t) => t?.setTooltip(title));
+      TrayIcon.getById("main")
+        .then((t) => t?.setTooltip(title))
+        .catch(() => {
+          /* 浏览器预览时无托盘,静默降级 */
+        });
     } catch {
       /* 浏览器预览时无托盘,静默降级 */
     }
   }, [state, now]);
+
+  // 托盘菜单:窗口藏着时也能暂停/继续、弃课
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  /** 事件回调里取最新的 actions,避免闭包拿到首帧的旧函数 */
+  const actionsRef = useRef<{
+    togglePause: () => void;
+    skip: () => void;
+  } | null>(null);
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void Promise.all([
+      listen("tray-toggle", () => {
+        const s = stateRef.current;
+        if (s.phase === "idle") return;
+        actionsRef.current?.togglePause();
+      }),
+      listen("tray-skip", () => {
+        if (stateRef.current.phase === "idle") return;
+        actionsRef.current?.skip();
+      }),
+    ])
+      .then(([offToggle, offSkip]) => {
+        if (disposed) {
+          offToggle();
+          offSkip();
+        } else {
+          unlisten = () => {
+            offToggle();
+            offSkip();
+          };
+        }
+      })
+      .catch(() => {
+        /* 浏览器预览时无事件通道,静默降级 */
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   const elapsedMs = elapsedOf(state, now);
   const remainingSeconds = Math.max(
@@ -196,48 +326,99 @@ export function useTimer({ onFocusComplete }: UseTimerOptions = {}) {
       ? 0
       : Math.min(1, elapsedMs / (state.plannedSeconds * 1000));
 
-  return {
-    state,
-    running,
-    remainingSeconds,
-    /** 已进行比例 0~1 */
-    progress,
-    celebrateKey,
-    actions: {
-      start(taskId: number | null) {
-        const n = Date.now();
-        setState((s) => ({
+  const actions = {
+    start(taskId: number | null) {
+      const n = Date.now();
+      setState((s) => ({
+        ...s,
+        phase: "focus",
+        paused: false,
+        plannedSeconds: s.focusMinutes * 60,
+        startAt: n,
+        pausedAccum: 0,
+        pausedAt: null,
+        sessionStartAt: n,
+        taskId,
+      }));
+    },
+    pause() {
+      setState((s) =>
+        !s.paused && s.phase !== "idle"
+          ? { ...s, paused: true, pausedAt: Date.now() }
+          : s,
+      );
+    },
+    resume() {
+      setState((s) => {
+        if (!s.paused || s.pausedAt == null) return s;
+        return {
           ...s,
-          phase: "focus",
           paused: false,
-          plannedSeconds: s.focusMinutes * 60,
-          startAt: n,
-          pausedAccum: 0,
+          pausedAccum: s.pausedAccum + (Date.now() - s.pausedAt),
           pausedAt: null,
-          sessionStartAt: n,
-          taskId,
-        }));
-      },
-      pause() {
-        setState((s) =>
-          !s.paused && s.phase !== "idle"
-            ? { ...s, paused: true, pausedAt: Date.now() }
-            : s,
-        );
-      },
-      resume() {
-        setState((s) => {
-          if (!s.paused || s.pausedAt == null) return s;
+        };
+      });
+    },
+    /** 暂停与继续合一,供快捷键与托盘使用 */
+    togglePause() {
+      setState((s) => {
+        if (s.phase === "idle") return s;
+        if (s.paused) {
+          if (s.pausedAt == null) return s;
           return {
             ...s,
             paused: false,
             pausedAccum: s.pausedAccum + (Date.now() - s.pausedAt),
             pausedAt: null,
           };
+        }
+        return { ...s, paused: true, pausedAt: Date.now() };
+      });
+    },
+    reset() {
+      setState((s) => ({
+        ...s,
+        phase: "idle",
+        paused: false,
+        plannedSeconds: s.focusMinutes * 60,
+        startAt: null,
+        pausedAccum: 0,
+        pausedAt: null,
+        sessionStartAt: null,
+      }));
+    },
+    skip() {
+      const s = state;
+      const n = Date.now();
+      if (s.phase === "focus") {
+        const elapsedSec = Math.round(elapsedOf(s, n) / 1000);
+        if (elapsedSec >= 60) {
+          persistSession(
+            {
+              task_id: s.taskId,
+              mode: "focus",
+              started_at: new Date(s.sessionStartAt ?? n).toISOString(),
+              ended_at: new Date(n).toISOString(),
+              planned_seconds: s.plannedSeconds,
+              actual_seconds: elapsedSec,
+              status: "abandoned",
+            },
+            onFocusComplete,
+          );
+        }
+        notify("已截课", "此课未竟 · 先歇一歇");
+        setState({
+          ...s,
+          phase: "break",
+          paused: false,
+          plannedSeconds: BREAK_MINUTES * 60,
+          startAt: n,
+          pausedAccum: 0,
+          pausedAt: null,
+          sessionStartAt: null,
         });
-      },
-      reset() {
-        setState((s) => ({
+      } else if (s.phase === "break") {
+        setState({
           ...s,
           phase: "idle",
           paused: false,
@@ -246,63 +427,30 @@ export function useTimer({ onFocusComplete }: UseTimerOptions = {}) {
           pausedAccum: 0,
           pausedAt: null,
           sessionStartAt: null,
-        }));
-      },
-      async skip() {
-        const s = state;
-        const n = Date.now();
-        if (s.phase === "focus") {
-          const elapsedSec = Math.round(elapsedOf(s, n) / 1000);
-          if (elapsedSec >= 60) {
-            try {
-              await insertFocusSession({
-                task_id: s.taskId,
-                mode: "focus",
-                started_at: new Date(s.sessionStartAt ?? n).toISOString(),
-                ended_at: new Date(n).toISOString(),
-                planned_seconds: s.plannedSeconds,
-                actual_seconds: elapsedSec,
-                status: "abandoned",
-              });
-              onFocusComplete?.();
-            } catch {
-              /* 浏览器预览降级 */
-            }
-          }
-          notify("已截课", "此课未竟 · 先歇一歇");
-          setState({
-            ...s,
-            phase: "break",
-            paused: false,
-            plannedSeconds: BREAK_MINUTES * 60,
-            startAt: n,
-            pausedAccum: 0,
-            pausedAt: null,
-            sessionStartAt: null,
-          });
-        } else if (s.phase === "break") {
-          setState({
-            ...s,
-            phase: "idle",
-            paused: false,
-            plannedSeconds: s.focusMinutes * 60,
-            startAt: null,
-            pausedAccum: 0,
-            pausedAt: null,
-            sessionStartAt: null,
-          });
-        }
-      },
-      setFocusMinutes(minutes: number) {
-        setState((s) =>
-          s.phase === "idle"
-            ? { ...s, focusMinutes: minutes, plannedSeconds: minutes * 60 }
-            : s,
-        );
-      },
-      setTaskId(taskId: number | null) {
-        setState((s) => (s.phase === "idle" ? { ...s, taskId } : s));
-      },
+        });
+      }
     },
+    setFocusMinutes(minutes: number) {
+      setState((s) =>
+        s.phase === "idle"
+          ? { ...s, focusMinutes: minutes, plannedSeconds: minutes * 60 }
+          : s,
+      );
+    },
+    setTaskId(taskId: number | null) {
+      setState((s) => (s.phase === "idle" ? { ...s, taskId } : s));
+    },
+  };
+
+  actionsRef.current = actions;
+
+  return {
+    state,
+    running,
+    remainingSeconds,
+    /** 已进行比例 0~1 */
+    progress,
+    celebrateKey,
+    actions,
   };
 }

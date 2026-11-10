@@ -1,9 +1,12 @@
 import { formatDuration } from "@/lib/format";
+import { THEMES, type ThemeId } from "@/lib/useTheme";
 
 interface FooterBarProps {
   today: { tomatoes: number; seconds: number };
   /** 每次功成 +1,驱动最新一笔朱批重画;0 表示本会话尚未有功成,不播动画 */
   celebrateKey: number;
+  theme: ThemeId;
+  onThemeChange: (theme: ThemeId) => void;
 }
 
 /** 「正」的五笔笔顺坐标(34×34 视窗) */
@@ -15,8 +18,8 @@ const ZHENG_STROKES = [
   "M5 27 H29", // 一 底横
 ];
 
-/** 乌墨页脚:今日课数 + 朱批正字(五笔一正) + 功成朱印 */
-export function FooterBar({ today, celebrateKey }: FooterBarProps) {
+/** 页脚:浅纸底,朱笔正字记功,只留一线分隔 */
+export function FooterBar({ today, celebrateKey, theme, onThemeChange }: FooterBarProps) {
   const n = today.tomatoes;
   const fulls = Math.floor(n / 5);
   const rem = n % 5;
@@ -26,19 +29,30 @@ export function FooterBar({ today, celebrateKey }: FooterBarProps) {
   const groups = fulls + (rem > 0 ? 1 : 0);
 
   return (
-    <footer className="flex h-[66px] shrink-0 items-center gap-4 bg-ink-bar px-7 text-[#e6d5b0]">
-      <div className="text-[13px] tracking-[0.05em]">
+    <footer
+      className="flex h-[66px] shrink-0 items-center gap-4 bg-footer px-7 text-[13px] tracking-[0.05em] text-footer-fg"
+      style={{ borderTop: "1px solid var(--footer-hair)" }}
+    >
+      <div>
         今日已课{" "}
-        <b className="text-[17px] font-bold text-primary-foreground">{n}</b> 炷
-        · 计{" "}
-        <b className="text-[17px] font-bold text-primary-foreground">
+        <b
+          className="text-[17px] font-bold tabular-nums"
+          style={{ color: "var(--footer-strong)" }}
+        >
+          {n}
+        </b>{" "}
+        炷 · 计{" "}
+        <b
+          className="text-[17px] font-bold tabular-nums"
+          style={{ color: "var(--footer-strong)" }}
+        >
           {formatDuration(today.seconds)}
         </b>
       </div>
 
       <div className="flex items-center gap-1.5">
         {Array.from({ length: groups }, (_, g) => (
-          <svg key={g} width="30" height="30" viewBox="0 0 34 34" className="shrink-0">
+          <svg key={g} width="26" height="26" viewBox="0 0 34 34" className="shrink-0">
             {ZHENG_STROKES.slice(0, g === groups - 1 && rem > 0 ? rem : 5).map(
               (d, i) => {
                 const isNewest =
@@ -47,8 +61,8 @@ export function FooterBar({ today, celebrateKey }: FooterBarProps) {
                   <path
                     key={isNewest ? `${g}-${i}-${celebrateKey}` : `${g}-${i}`}
                     d={d}
-                    stroke="#d05540"
-                    strokeWidth="4"
+                    stroke="var(--zhu-red)"
+                    strokeWidth="3.5"
                     strokeLinecap="round"
                     fill="none"
                     strokeDasharray="48"
@@ -60,11 +74,11 @@ export function FooterBar({ today, celebrateKey }: FooterBarProps) {
           </svg>
         ))}
         {n === 0 ? (
-          <span className="text-[12px] tracking-[0.2em] text-[#cbb98f]">
+          <span className="ml-1 text-[12px] tracking-[0.2em] text-footer-fg/70">
             尚未落笔
           </span>
         ) : (
-          <span className="ml-1 text-[11px] tracking-[0.2em] text-[#e6d5b099]">
+          <span className="ml-1 text-[11px] tracking-[0.2em] text-footer-fg/60">
             五笔一正
           </span>
         )}
@@ -75,15 +89,37 @@ export function FooterBar({ today, celebrateKey }: FooterBarProps) {
           key={celebrateKey > 0 ? `stamp-${n}` : "stamp-static"}
           className={
             celebrateKey > 0
-              ? "ml-auto flex h-[46px] w-[46px] animate-stamp-in items-center justify-center border-[2.5px] border-[#d05540] font-brush text-[17px] font-bold tracking-[0.1em] text-[#e0563f]"
-              : "ml-auto flex h-[46px] w-[46px] items-center justify-center border-[2.5px] border-[#d05540] font-brush text-[17px] font-bold tracking-[0.1em] text-[#e0563f]"
+              ? "flex h-[44px] w-[44px] animate-stamp-in items-center justify-center font-brush text-[16px] font-bold tracking-[0.1em]"
+              : "flex h-[44px] w-[44px] items-center justify-center font-brush text-[16px] font-bold tracking-[0.1em]"
           }
-          style={{ transform: "rotate(3deg)" }}
+          style={{
+            transform: "rotate(3deg)",
+            color: "var(--footer-strong)",
+            border: "1.5px solid var(--footer-strong)",
+          }}
           title={`今日功成 ${n} 炷`}
         >
           功成
         </div>
       )}
+
+      <div className="ml-auto flex items-center gap-3">
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onThemeChange(t.id)}
+            title={`换纸：${t.label}`}
+            className="text-[11px] tracking-[0.2em] transition-colors"
+            style={{
+              color:
+                theme === t.id ? "var(--footer-strong)" : "var(--footer-fg)",
+              opacity: theme === t.id ? 1 : 0.55,
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
     </footer>
   );
 }

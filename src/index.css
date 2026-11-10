@@ -46,9 +46,13 @@
     --color-cinnabar: var(--cinnabar);
     --color-cinnabar-deep: var(--cinnabar-deep);
     --color-ink: var(--ink);
-    --color-ink-bar: var(--ink-bar);
     --color-paper-raise: var(--paper-raise);
     --color-azurite: var(--azurite);
+    --color-zhu-red: var(--zhu-red);
+    --color-masthead: var(--masthead-bg);
+    --color-masthead-fg: var(--masthead-fg);
+    --color-footer: var(--footer-bg);
+    --color-footer-fg: var(--footer-fg);
     --radius-sm: calc(var(--radius) * 0.75);
     --radius-md: calc(var(--radius) * 1);
     --radius-lg: calc(var(--radius) * 1.6);
@@ -66,46 +70,247 @@
 }
 
 :root {
-    /* 竹纸:历书的纸面,全天候可读的暖亮底 */
-    --background: #e8d9b8;
-    --foreground: #221c15; /* 玄墨 */
-    --card: #efe3c9; /* 亮一层的纸 */
-    --card-foreground: #221c15;
-    --popover: #f2e7cf;
-    --popover-foreground: #221c15;
-    --primary: #c23a2b; /* 朱红 */
-    --primary-foreground: #f7ebcb;
-    --secondary: #ddcda6;
-    --secondary-foreground: #221c15;
-    --muted: #ddcda6;
-    --muted-foreground: #5d5039; /* 茶墨,纸面上 ≥4.5:1 */
-    --accent: #d5c49a;
-    --accent-foreground: #221c15;
-    --destructive: #8f2618;
-    --border: #221c1533;
-    --input: #221c1526;
-    --ring: #c23a2b;
-    --chart-1: #c23a2b;
-    --chart-2: #31606b;
-    --chart-3: #6f6046;
-    --chart-4: #8a6f3c;
-    --chart-5: #7c4a3e;
-    --radius: 0.125rem; /* 印刷方角 */
-    --sidebar: #e2d2ae;
-    --sidebar-foreground: #221c15;
-    --sidebar-primary: #c23a2b;
-    --sidebar-primary-foreground: #f7ebcb;
-    --sidebar-accent: #ddcda6;
-    --sidebar-accent-foreground: #221c15;
-    --sidebar-border: #221c1526;
-    --sidebar-ring: #c23a2b;
+    /* 月白:素纸微青,墨转蓝黑,朱砂只作细笔 */
+    --background: #f6f7f4;
+    --foreground: #2e373a;
+    --card: #fdfefc;
+    --card-foreground: #2e373a;
+    --popover: #fdfefc;
+    --popover-foreground: #2e373a;
+    --primary: #b03a2a;
+    --primary-foreground: #fdfcf9;
+    --secondary: #eef2ef;
+    --secondary-foreground: #2e373a;
+    --muted: #eef2ef;
+    --muted-foreground: #59676b; /* 茶墨,纸面上 ≥4.5:1 */
+    --accent: #e7eeea;
+    --accent-foreground: #2e373a;
+    --destructive: #8a2a1e;
+    --border: #2e373a2e;
+    --input: #2e373a24;
+    --ring: #b03a2a;
+    --chart-1: #b03a2a;
+    --chart-2: #4a7077;
+    --chart-3: #6b7a7d;
+    --chart-4: #8a7f68;
+    --chart-5: #8a5a4e;
+    --radius: 0.125rem;
+    --sidebar: #eef2ef;
+    --sidebar-foreground: #2e373a;
+    --sidebar-primary: #b03a2a;
+    --sidebar-primary-foreground: #fdfcf9;
+    --sidebar-accent: #e7eeea;
+    --sidebar-accent-foreground: #2e373a;
+    --sidebar-border: #2e373a24;
+    --sidebar-ring: #b03a2a;
+
     /* 历书专属 */
-    --cinnabar: #c23a2b;
-    --cinnabar-deep: #8f2618;
-    --ink: #221c15;
-    --ink-bar: #1f1a16; /* 乌墨页脚条 */
-    --paper-raise: #f0e5ca;
-    --azurite: #31606b; /* 石青:休息相 */
+    --cinnabar: #b03a2a;
+    --cinnabar-deep: #8a2a1e;
+    --ink: #2e373a;
+    --paper-raise: #fdfefc;
+    --azurite: #4a7077;
+
+    /* 刊头:纸底 + 朱丝栏,不再是实色横栏 */
+    --masthead-bg: #f6f7f4;
+    --masthead-fg: #2e373a;
+    --masthead-sub: #59676b;
+    --masthead-hair: #2e373a30;
+    --masthead-rule: #b03a2a6b;
+
+    /* 页脚:浅纸底,朱笔记账 */
+    --footer-bg: #eef2ef;
+    --footer-fg: #59676b;
+    --footer-strong: #8a2a1e;
+    --footer-hair: #2e373a1f;
+    --zhu-red: #b03a2a;
+
+    /* 印章与宜忌:实心朱砂,全局唯一重音 */
+    --seal-bg: #b03a2a;
+    --seal-fg: #fdfcf9;
+    --seal-edge: inset 0 0 0 2.5px #f6f7f48c, 0 2px 6px #2e373a26;
+    --seal-break-bg: #4a7077;
+    --seal-break-fg: #fdfcf9;
+    --seal-break-edge: inset 0 0 0 2.5px #f6f7f48c, 0 2px 6px #2e373a26;
+    --chip-yi-bg: #b03a2a;
+    --chip-yi-fg: #fdfcf9;
+    --chip-yi-ring: #b03a2a;
+    --chip-ji-bg: #2e373a;
+    --chip-ji-fg: #fdfcf9;
+    --chip-ji-ring: #2e373a;
+    --chip-break-bg: #4a7077;
+    --chip-break-fg: #fdfcf9;
+    --chip-break-ring: #4a7077;
+
+    /* 套印重影:墨晕而非色块 */
+    --ghost-idle: 2px 2px 0 rgba(176,58,42,.14);
+    --ghost-focus: 3px 3px 0 rgba(176,58,42,.28);
+    --ghost-break: 3px 3px 0 rgba(74,112,119,.34);
+
+    /* 滚动条 */
+    --scroll-track: #eef2ef;
+    --scroll-thumb: #c2cdc8;
+    --scroll-thumb-hover: #a4b3ae;
+}
+
+/* 雨过天青:汝窑青瓷底,印章与宜忌全改描边,最飘渺 */
+[data-theme="tianqing"] {
+    --background: #eaf1ef;
+    --foreground: #2d3a39;
+    --card: #f7fbf9;
+    --card-foreground: #2d3a39;
+    --popover: #f7fbf9;
+    --popover-foreground: #2d3a39;
+    --primary: #a8412f;
+    --primary-foreground: #fdfcf9;
+    --secondary: #dfe9e6;
+    --secondary-foreground: #2d3a39;
+    --muted: #dfe9e6;
+    --muted-foreground: #556765;
+    --accent: #d5e2de;
+    --accent-foreground: #2d3a39;
+    --destructive: #832f20;
+    --border: #2d3a392e;
+    --input: #2d3a3924;
+    --ring: #a8412f;
+    --chart-1: #a8412f;
+    --chart-2: #436a6a;
+    --chart-3: #6b7a78;
+    --chart-4: #8a7f68;
+    --chart-5: #8a5a4e;
+    --sidebar: #dfe9e6;
+    --sidebar-foreground: #2d3a39;
+    --sidebar-primary: #a8412f;
+    --sidebar-primary-foreground: #fdfcf9;
+    --sidebar-accent: #d5e2de;
+    --sidebar-accent-foreground: #2d3a39;
+    --sidebar-border: #2d3a3924;
+    --sidebar-ring: #a8412f;
+
+    --cinnabar: #a8412f;
+    --cinnabar-deep: #832f20;
+    --ink: #2d3a39;
+    --paper-raise: #f7fbf9;
+    --azurite: #436a6a;
+
+    --masthead-bg: #eaf1ef;
+    --masthead-fg: #2d3a39;
+    --masthead-sub: #556765;
+    --masthead-hair: #2d3a3930;
+    --masthead-rule: #a8412f66;
+
+    --footer-bg: #dfe9e6;
+    --footer-fg: #556765;
+    --footer-strong: #832f20;
+    --footer-hair: #2d3a391f;
+    --zhu-red: #a8412f;
+
+    /* 描边印:一线朱 + 内嵌细环,不至空框 */
+    --seal-bg: transparent;
+    --seal-fg: #a8412f;
+    --seal-edge: inset 0 0 0 1.5px #a8412f, inset 0 0 0 5px #eaf1ef,
+      inset 0 0 0 6px #a8412f59;
+    --seal-break-bg: transparent;
+    --seal-break-fg: #436a6a;
+    --seal-break-edge: inset 0 0 0 1.5px #436a6a, inset 0 0 0 5px #eaf1ef,
+      inset 0 0 0 6px #436a6a59;
+    --chip-yi-bg: transparent;
+    --chip-yi-fg: #a8412f;
+    --chip-yi-ring: #a8412f;
+    --chip-ji-bg: transparent;
+    --chip-ji-fg: #2d3a39;
+    --chip-ji-ring: #2d3a3973;
+    --chip-break-bg: transparent;
+    --chip-break-fg: #436a6a;
+    --chip-break-ring: #436a6a;
+
+    --ghost-idle: 2px 2px 0 rgba(168,65,47,.12);
+    --ghost-focus: 3px 3px 0 rgba(168,65,47,.26);
+    --ghost-break: 3px 3px 0 rgba(67,106,106,.32);
+
+    --scroll-track: #dfe9e6;
+    --scroll-thumb: #b3c6c1;
+    --scroll-thumb-hover: #94aaa5;
+}
+
+/* 素白:最净的白纸,只余朱墨二字 */
+[data-theme="subai"] {
+    --background: #f8f7f4;
+    --foreground: #33343a;
+    --card: #fdfcfa;
+    --card-foreground: #33343a;
+    --popover: #fdfcfa;
+    --popover-foreground: #33343a;
+    --primary: #b23a2b;
+    --primary-foreground: #fdfcf9;
+    --secondary: #f1f0ec;
+    --secondary-foreground: #33343a;
+    --muted: #f1f0ec;
+    --muted-foreground: #5f6068;
+    --accent: #ebeae5;
+    --accent-foreground: #33343a;
+    --destructive: #8c2b1d;
+    --border: #33343a2b;
+    --input: #33343a21;
+    --ring: #b23a2b;
+    --chart-1: #b23a2b;
+    --chart-2: #46596b;
+    --chart-3: #6f716f;
+    --chart-4: #8a7f68;
+    --chart-5: #8a5a4e;
+    --sidebar: #f1f0ec;
+    --sidebar-foreground: #33343a;
+    --sidebar-primary: #b23a2b;
+    --sidebar-primary-foreground: #fdfcf9;
+    --sidebar-accent: #ebeae5;
+    --sidebar-accent-foreground: #33343a;
+    --sidebar-border: #33343a21;
+    --sidebar-ring: #b23a2b;
+
+    --cinnabar: #b23a2b;
+    --cinnabar-deep: #8c2b1d;
+    --ink: #33343a;
+    --paper-raise: #fdfcfa;
+    --azurite: #46596b;
+
+    --masthead-bg: #f8f7f4;
+    --masthead-fg: #33343a;
+    --masthead-sub: #5f6068;
+    --masthead-hair: #33343a2e;
+    --masthead-rule: #b23a2b5c;
+
+    --footer-bg: #f1f0ec;
+    --footer-fg: #5f6068;
+    --footer-strong: #8c2b1d;
+    --footer-hair: #33343a1c;
+    --zhu-red: #b23a2b;
+
+    /* 更细的一线朱:双线印 */
+    --seal-bg: transparent;
+    --seal-fg: #b23a2b;
+    --seal-edge: inset 0 0 0 1px #b23a2b, inset 0 0 0 4px #f8f7f4,
+      inset 0 0 0 5px #b23a2b47;
+    --seal-break-bg: transparent;
+    --seal-break-fg: #46596b;
+    --seal-break-edge: inset 0 0 0 1px #46596b, inset 0 0 0 4px #f8f7f4,
+      inset 0 0 0 5px #46596b47;
+    --chip-yi-bg: transparent;
+    --chip-yi-fg: #b23a2b;
+    --chip-yi-ring: #b23a2b99;
+    --chip-ji-bg: transparent;
+    --chip-ji-fg: #33343a;
+    --chip-ji-ring: #33343a59;
+    --chip-break-bg: transparent;
+    --chip-break-fg: #46596b;
+    --chip-break-ring: #46596b;
+
+    --ghost-idle: 2px 2px 0 rgba(178,58,43,.10);
+    --ghost-focus: 3px 3px 0 rgba(178,58,43,.22);
+    --ghost-break: 3px 3px 0 rgba(70,89,107,.30);
+
+    --scroll-track: #f1f0ec;
+    --scroll-thumb: #cfcec8;
+    --scroll-thumb-hover: #b3b2ab;
 }
 
 @keyframes fade-in-up {
@@ -142,21 +347,23 @@
   html {
     @apply font-sans;
     color-scheme: light;
-    scrollbar-color: #b09e74 #e0d0aa;
+    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
     }
   body {
-    /* 竹纸帘纹 */
-    background:
-      repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.045) 0 1px, transparent 1px 8px),
-      var(--background);
+    /* 纸面无纹:飘渺靠留白,不靠肌理 */
+    background: var(--background);
     @apply text-foreground;
     }
   ::selection {
     background: var(--cinnabar);
-    color: #f7ebcb;
+    color: var(--primary-foreground);
     }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: #e0d0aa; }
-  ::-webkit-scrollbar-thumb { background: #b09e74; border: 2px solid #e0d0aa; border-radius: 5px; }
-  ::-webkit-scrollbar-thumb:hover { background: #96835a; }
+  ::-webkit-scrollbar-track { background: var(--scroll-track); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border: 2px solid var(--scroll-track);
+    border-radius: 5px;
+    }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 }

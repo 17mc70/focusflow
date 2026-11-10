@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -35,6 +35,14 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        // 必须最先注册:第二个实例启动时聚焦已有窗口并自行退出
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
@@ -44,8 +52,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let show = MenuItem::with_id(app, "show", "显示 FocusFlow", true, None::<&str>)?;
+            let toggle = MenuItem::with_id(app, "toggle", "暂停 / 继续", true, None::<&str>)?;
+            let skip = MenuItem::with_id(app, "skip", "截课", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &toggle, &skip, &quit])?;
 
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
@@ -57,6 +67,13 @@ pub fn run() {
                             let _ = w.show();
                             let _ = w.set_focus();
                         }
+                    }
+                    // 前端监听这两个事件,窗口藏着也能控计时
+                    "toggle" => {
+                        let _ = app.emit("tray-toggle", ());
+                    }
+                    "skip" => {
+                        let _ = app.emit("tray-skip", ());
                     }
                     "quit" => app.exit(0),
                     _ => {}

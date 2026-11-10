@@ -7,6 +7,8 @@
 - **检历**：近十四日排成同尺寸历页缩样，逐日可比
 - 手账页为刊头禁用占位，未实现
 
+空格键起课 / 暂停 / 续课。关闭窗口即隐入托盘，托盘菜单可直接暂停、继续或截课；单实例运行，重复启动只会唤回已有窗口。计时跨零点自动刷新，应用关闭期间走完的一段会在下次启动时按真实结束时间补记。
+
 技术栈：Tauri 2 + React 19 + TypeScript + Vite + Tailwind 4 + shadcn。数据存本地 SQLite（`tauri-plugin-sql`），无账号、无网络请求、无遥测。
 
 ## 运行
@@ -35,6 +37,8 @@ cd src-tauri && cargo check
 ## 数据
 
 SQLite 文件 `app.db` 由 Tauri 数据目录承载，表 `tasks` 与 `focus_sessions`，建表迁移写在 `src-tauri/src/lib.rs`。计时状态另存于 `localStorage`（键 `ff-timer-state`），重启可恢复进行中的一段。
+
+前端调用原生能力受 `src-tauri/capabilities/default.json` 约束：数据库写操作需要 `sql:allow-execute`，窗口标题需要 `core:window:allow-set-title`，两者都不在各自插件的默认权限集内。
 
 打包产物名为 `FocusFlow`（`src-tauri/tauri.conf.json` 的 `productName`），窗口标题与界面品牌为「坐香」「坐香历」。
 
